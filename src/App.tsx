@@ -14,15 +14,31 @@ interface CartItem {
   qty: number
 }
 
+interface AgentDetail {
+  type: 'money' | 'coupon' | 'text'
+  label: string
+  value?: number | string
+  couponCode?: string
+}
+
 interface AgentExplanation {
   code: string
   summary: string
-  details?: unknown[]
+  details?: AgentDetail[]
+}
+
+interface CheckoutResult {
+  subtotal?: number
+  discount?: number
+  total?: number
+  [key: string]: unknown
 }
 
 interface AgentResponse {
   explanation: AgentExplanation | null
   compare?: unknown
+  chosenCoupon?: string
+  finalResult?: CheckoutResult
 }
 
 const INTENTS: AgentIntent[] = [
@@ -238,13 +254,52 @@ function App() {
               <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f8ff', border: '1px solid #c0d8f0', borderRadius: '4px' }}>
                 <strong>{agentResponse.explanation.code}</strong>
                 <p style={{ margin: '6px 0 0' }}>{agentResponse.explanation.summary}</p>
-                {agentResponse.explanation.details && (
-                  <pre style={{ marginTop: '8px', padding: '8px', backgroundColor: '#e8f4fb', borderRadius: '4px', overflow: 'auto', fontSize: '13px' }}>
-                    {JSON.stringify(agentResponse.explanation.details, null, 2)}
-                  </pre>
+                {agentResponse.explanation.details && agentResponse.explanation.details.length > 0 && (
+                  <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '14px' }}>
+                    {agentResponse.explanation.details.map((detail, i) => (
+                      <li key={i} style={{ marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 500 }}>{detail.label}:</span>{' '}
+                        {detail.type === 'money' && (
+                          typeof detail.value === 'number'
+                            ? `$${detail.value.toFixed(2)}`
+                            : detail.value
+                        )}
+                        {detail.type === 'coupon' && detail.couponCode}
+                        {detail.type === 'text' && detail.value}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             )}
+            {(agentResponse.chosenCoupon !== undefined || agentResponse.finalResult !== undefined) && (
+              <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f6fff6', border: '1px solid #b0d8b0', borderRadius: '4px' }}>
+                <strong>Checkout Summary</strong>
+                {agentResponse.chosenCoupon !== undefined && (
+                  <p style={{ margin: '6px 0 0' }}>Chosen coupon: <code>{agentResponse.chosenCoupon}</code></p>
+                )}
+                {agentResponse.finalResult !== undefined && (
+                  <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '14px' }}>
+                    {agentResponse.finalResult.subtotal !== undefined && (
+                      <li>Subtotal: <strong>${agentResponse.finalResult.subtotal.toFixed(2)}</strong></li>
+                    )}
+                    {agentResponse.finalResult.discount !== undefined && (
+                      <li>Discount: <strong>-${agentResponse.finalResult.discount.toFixed(2)}</strong></li>
+                    )}
+                    {agentResponse.finalResult.total !== undefined && (
+                      <li>Total: <strong>${agentResponse.finalResult.total.toFixed(2)}</strong></li>
+                    )}
+                    {Object.entries(agentResponse.finalResult)
+                      .filter(([k]) => !['subtotal', 'discount', 'total'].includes(k))
+                      .map(([k, v]) => (
+                        <li key={k}>{k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}</li>
+                      ))
+                    }
+                  </ul>
+                )}
+              </div>
+            )}
+
             {agentResponse.compare !== undefined && (
               <div>
                 <strong>Compare:</strong>
