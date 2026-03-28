@@ -39,8 +39,10 @@ interface CompareRow {
   couponCode?: string
   code?: string
   status?: string
+  isValid?: boolean
   discount?: number
   total?: number
+  finalPrice?: number
   message?: string
   isBest?: boolean
 }
@@ -58,6 +60,7 @@ function normalizeCompare(compare: unknown): CompareRow[] {
     const obj = compare as Record<string, unknown>
     if (Array.isArray(obj.results)) return obj.results as CompareRow[]
     if (Array.isArray(obj.coupons)) return obj.coupons as CompareRow[]
+    if (Array.isArray(obj.comparisons)) return obj.comparisons as CompareRow[]
   }
   return []
 }
@@ -350,7 +353,7 @@ function App() {
                       </thead>
                       <tbody>
                         {rows.map((row, i) => {
-                          const isValid = row.status === 'valid'
+                          const isValid = row.status === 'valid' || row.isValid === true
                           const isBest = !!row.isBest
                           const rowStyle: React.CSSProperties = {
                             borderBottom: '1px solid #eee',
@@ -358,12 +361,15 @@ function App() {
                             opacity: isValid ? 1 : 0.6,
                           }
                           const coupon = row.couponCode ?? row.code ?? '—'
-                          const discount = typeof row.discount === 'number' ? `$${row.discount.toFixed(2)}` : '—'
-                          const total = typeof row.total === 'number' ? `$${row.total.toFixed(2)}` : '—'
+                          const discountAmt = row.discount
+                          const discount = typeof discountAmt === 'number' ? `$${discountAmt.toFixed(2)}` : '—'
+                          const totalAmt = row.total ?? row.finalPrice
+                          const total = typeof totalAmt === 'number' ? `$${totalAmt.toFixed(2)}` : '—'
+                          const statusLabel = row.status ?? (row.isValid === true ? 'valid' : row.isValid === false ? 'invalid' : '—')
                           return (
                             <tr key={i} style={rowStyle}>
                               <td style={{ ...tdBase, fontFamily: 'monospace' }}>{coupon}</td>
-                              <td style={{ ...tdBase, color: isValid ? '#2a7a2a' : '#999' }}>{row.status ?? '—'}</td>
+                              <td style={{ ...tdBase, color: isValid ? '#2a7a2a' : '#999' }}>{statusLabel}</td>
                               <td style={tdBase}>{discount}</td>
                               <td style={tdBase}>{total}</td>
                               <td style={{ ...tdBase, color: '#666' }}>{row.message ?? ''}</td>
