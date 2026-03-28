@@ -65,6 +65,15 @@ function normalizeCompare(compare: unknown): CompareRow[] {
   return []
 }
 
+function fmtCurrency(value: number | undefined | null): string {
+  return typeof value === 'number' ? `$${value.toFixed(2)}` : '—'
+}
+
+function sortCompareRows(rows: CompareRow[]): CompareRow[] {
+  const rank = (r: CompareRow) => r.isBest ? 0 : (r.status === 'valid' || r.isValid === true) ? 1 : 2
+  return [...rows].sort((a, b) => rank(a) - rank(b))
+}
+
 const INTENTS: AgentIntent[] = [
   'apply_best_coupon_and_simulate_checkout',
   'simulate_checkout_without_coupon',
@@ -336,6 +345,7 @@ function App() {
               )
               const thStyle: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #ccc', whiteSpace: 'nowrap' }
               const tdBase: React.CSSProperties = { padding: '8px 12px', fontSize: '14px' }
+              const sorted = sortCompareRows(rows)
               return (
                 <div style={{ marginBottom: '16px' }}>
                   <strong>Compare</strong>
@@ -348,32 +358,42 @@ function App() {
                           <th style={thStyle}>Discount</th>
                           <th style={thStyle}>Total</th>
                           <th style={thStyle}>Message</th>
-                          <th style={thStyle}>Best</th>
+                          <th style={{ ...thStyle, textAlign: 'center' }}>Best</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map((row, i) => {
+                        {sorted.map((row, i) => {
                           const isValid = row.status === 'valid' || row.isValid === true
                           const isBest = !!row.isBest
                           const rowStyle: React.CSSProperties = {
                             borderBottom: '1px solid #eee',
                             backgroundColor: isBest ? '#fffbe6' : 'transparent',
-                            opacity: isValid ? 1 : 0.6,
+                            opacity: isValid ? 1 : 0.55,
                           }
                           const coupon = row.couponCode ?? row.code ?? '—'
-                          const discountAmt = row.discount
-                          const discount = typeof discountAmt === 'number' ? `$${discountAmt.toFixed(2)}` : '—'
-                          const totalAmt = row.total ?? row.finalPrice
-                          const total = typeof totalAmt === 'number' ? `$${totalAmt.toFixed(2)}` : '—'
+                          const discount = fmtCurrency(row.discount)
+                          const total = fmtCurrency(row.total ?? row.finalPrice)
                           const statusLabel = row.status ?? (row.isValid === true ? 'valid' : row.isValid === false ? 'invalid' : '—')
+                          const statusColor = isValid ? '#2a7a2a' : '#999'
+                          const statusBadge: React.CSSProperties = {
+                            display: 'inline-block',
+                            padding: '1px 7px',
+                            borderRadius: '10px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            backgroundColor: isValid ? '#e6f4ea' : '#f0f0f0',
+                            color: statusColor,
+                          }
                           return (
                             <tr key={i} style={rowStyle}>
-                              <td style={{ ...tdBase, fontFamily: 'monospace' }}>{coupon}</td>
-                              <td style={{ ...tdBase, color: isValid ? '#2a7a2a' : '#999' }}>{statusLabel}</td>
+                              <td style={{ ...tdBase, fontFamily: 'monospace', fontWeight: isBest ? 600 : 400 }}>{coupon}</td>
+                              <td style={tdBase}><span style={statusBadge}>{statusLabel}</span></td>
                               <td style={tdBase}>{discount}</td>
-                              <td style={tdBase}>{total}</td>
-                              <td style={{ ...tdBase, color: '#666' }}>{row.message ?? ''}</td>
-                              <td style={{ ...tdBase, textAlign: 'center' }}>{isBest ? '✓' : ''}</td>
+                              <td style={{ ...tdBase, fontWeight: isBest ? 600 : 400 }}>{total}</td>
+                              <td style={{ ...tdBase, color: '#666', fontStyle: row.message ? 'normal' : 'italic' }}>
+                                {row.message || '—'}
+                              </td>
+                              <td style={{ ...tdBase, textAlign: 'center', fontSize: '16px', color: '#c8a000' }}>{isBest ? '★' : ''}</td>
                             </tr>
                           )
                         })}
