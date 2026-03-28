@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type React from 'react'
 import './App.css'
 
 type AgentIntent =
@@ -34,11 +35,34 @@ interface CheckoutResult {
   [key: string]: unknown
 }
 
+interface CompareRow {
+  couponCode?: string
+  code?: string
+  status?: string
+  isValid?: boolean
+  discount?: number
+  total?: number
+  finalPrice?: number
+  message?: string
+  isBest?: boolean
+}
+
 interface AgentResponse {
   explanation: AgentExplanation | null
   compare?: unknown
   chosenCoupon?: string
   finalResult?: CheckoutResult
+}
+
+function normalizeCompare(compare: unknown): CompareRow[] {
+  if (Array.isArray(compare)) return compare as CompareRow[]
+  if (compare && typeof compare === 'object') {
+    const obj = compare as Record<string, unknown>
+    if (Array.isArray(obj.results)) return obj.results as CompareRow[]
+    if (Array.isArray(obj.coupons)) return obj.coupons as CompareRow[]
+    if (Array.isArray(obj.comparisons)) return obj.comparisons as CompareRow[]
+  }
+  return []
 }
 
 const INTENTS: AgentIntent[] = [
@@ -300,14 +324,65 @@ function App() {
               </div>
             )}
 
-            {agentResponse.compare !== undefined && (
-              <div>
-                <strong>Compare:</strong>
-                <pre style={{ marginTop: '6px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px', overflow: 'auto' }}>
-                  {JSON.stringify(agentResponse.compare, null, 2)}
-                </pre>
-              </div>
-            )}
+            {agentResponse.compare !== undefined && (() => {
+              const rows = normalizeCompare(agentResponse.compare)
+              if (rows.length === 0) return (
+                <div>
+                  <strong>Compare:</strong>
+                  <pre style={{ marginTop: '6px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px', overflow: 'auto' }}>
+                    {JSON.stringify(agentResponse.compare, null, 2)}
+                  </pre>
+                </div>
+              )
+              const thStyle: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #ccc', whiteSpace: 'nowrap' }
+              const tdBase: React.CSSProperties = { padding: '8px 12px', fontSize: '14px' }
+              return (
+                <div style={{ marginBottom: '16px' }}>
+                  <strong>Compare</strong>
+                  <div style={{ overflowX: 'auto', marginTop: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Coupon</th>
+                          <th style={thStyle}>Status</th>
+                          <th style={thStyle}>Discount</th>
+                          <th style={thStyle}>Total</th>
+                          <th style={thStyle}>Message</th>
+                          <th style={thStyle}>Best</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, i) => {
+                          const isValid = row.status === 'valid' || row.isValid === true
+                          const isBest = !!row.isBest
+                          const rowStyle: React.CSSProperties = {
+                            borderBottom: '1px solid #eee',
+                            backgroundColor: isBest ? '#fffbe6' : 'transparent',
+                            opacity: isValid ? 1 : 0.6,
+                          }
+                          const coupon = row.couponCode ?? row.code ?? '—'
+                          const discountAmt = row.discount
+                          const discount = typeof discountAmt === 'number' ? `$${discountAmt.toFixed(2)}` : '—'
+                          const totalAmt = row.total ?? row.finalPrice
+                          const total = typeof totalAmt === 'number' ? `$${totalAmt.toFixed(2)}` : '—'
+                          const statusLabel = row.status ?? (row.isValid === true ? 'valid' : row.isValid === false ? 'invalid' : '—')
+                          return (
+                            <tr key={i} style={rowStyle}>
+                              <td style={{ ...tdBase, fontFamily: 'monospace' }}>{coupon}</td>
+                              <td style={{ ...tdBase, color: isValid ? '#2a7a2a' : '#999' }}>{statusLabel}</td>
+                              <td style={tdBase}>{discount}</td>
+                              <td style={tdBase}>{total}</td>
+                              <td style={{ ...tdBase, color: '#666' }}>{row.message ?? ''}</td>
+                              <td style={{ ...tdBase, textAlign: 'center' }}>{isBest ? '✓' : ''}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         )}
 
